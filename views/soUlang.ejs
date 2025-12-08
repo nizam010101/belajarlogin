@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= pageTitle %></title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <%- include('layout') %>
+      <div class="main-content">
+        <h1><%= pageTitle %></h1>
+
+        <div class="upload-section">
+          <h3>Upload File Excel</h3>
+          <p>Silakan pilih file .xlsx atau .xls untuk diupload</p>
+          <form action="/soulang" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+              <label for="excelFile" class="custom-file-label"
+                >Pilih File...</label
+              >
+              <input
+                type="file"
+                id="excelFile"
+                name="excelFile"
+                accept=".xlsx, .xls"
+                class="custom-file-input"
+                required
+                onchange="updateFileName(this)"
+              />
+              <div id="file-name">Belum ada file yang dipilih</div>
+            </div>
+            <button type="submit" class="btn-upload">Upload</button>
+          </form>
+        </div>
+
+        <div id="result">
+          <% if (typeof message !== 'undefined') { %>
+          <div class="alert <%= typeof status !== 'undefined' ? status : '' %>">
+            <%= message %>
+          </div>
+          <% } %> <% if (typeof data !== 'undefined' && data && data.length > 0)
+          { %>
+          <div class="table-responsive">
+            <div style="text-align: right">
+              <a href="/clear/<%= tableName %>" class="btn-clear"
+                >Clear Data / Upload Baru</a
+              >
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <% Object.keys(data[0]).forEach(key => { %>
+                  <th><%= key %></th>
+                  <% }) %>
+                </tr>
+              </thead>
+              <tbody>
+                <% data.forEach(row => { %>
+                <tr>
+                  <% Object.values(row).forEach(val => { %>
+                  <td><%= val %></td>
+                  <% }) %>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <script>
+      function updateFileName(input) {
+        const fileNameDisplay = document.getElementById("file-name");
+        if (input.files && input.files.length > 0) {
+          fileNameDisplay.textContent = input.files[0].name;
+        } else {
+          fileNameDisplay.textContent = "Belum ada file yang dipilih";
+        }
+      }
+    </script>
+  </body>
+</html>

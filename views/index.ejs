@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= pageTitle %></title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <%- include('layout') %>
+      <div class="main-content">
+        <h1><%= pageTitle %></h1>
+        <p>Selamat datang, <%= user.username %>!</p>
+        <div class="card">
+          <h3>Ringkasan</h3>
+          <p>Ini adalah halaman dashboard utama.</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

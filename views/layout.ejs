@@ -1,0 +1,20 @@
+<div class="sidebar">
+  <h2>MyApp Uploads</h2>
+  <ul>
+    <li><a href="/">Dashboard</a></li>
+    <% if (user) { %>
+    <li><a href="/masterproduk">Master Produk</a></li>
+    <li><a href="/uploadpesanan">Upload Pesanan</a></li>
+    <li><a href="/instok">In Stok</a></li>
+    <li><a href="/pengembalian">Pengembalian</a></li>
+    <li><a href="/pesananditerima">Pesanan Diterima</a></li>
+    <li><a href="/returditerima">Retur Diterima</a></li>
+    <li><a href="/soulang">SO Ulang</a></li>
+    <li><a href="/gagalkirim">Gagal Kirim</a></li>
+    <li><hr /></li>
+    <li><a href="/logout">Logout (<%= user.username %>)</a></li>
+    <% } else { %>
+    <li><a href="/login">Login</a></li>
+    <% } %>
+  </ul>
+</div>

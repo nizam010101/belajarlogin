@@ -201,11 +201,12 @@ const handelExcelUpload = async (req, res, viewName, pageTitle, tableName) => {
 
     fs.unlinkSync(req.file.path);
 
+    let message = "";
     if (tableName) {
       const stats = await saveToDatabase(tableName, data);
-      var message = `Berhasil! ${stats.inserted} data baru disimpan. ${stats.skipped} data duplikat diabaikan.`;
+      message = `Berhasil! ${stats.inserted} data baru disimpan. ${stats.skipped} data duplikat diabaikan.`;
     } else {
-      var message = "Berhasil upload " + data.length + " data (Preview Only)!";
+      message = "Berhasil upload " + data.length + " data (Preview Only)!";
     }
 
     // Fetch updated data

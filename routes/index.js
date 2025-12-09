@@ -202,13 +202,20 @@ const renderPage = async (req, res, viewName, pageTitle, tableName) => {
     data = rows;
   } catch (error) {
     // Table doesn't exist yet, ignore
+    console.log(`Table ${tableName} not found or error:`, error.message);
   }
+
+  // Pastikan data adalah array
+  if (!Array.isArray(data)) {
+    data = [];
+  }
+
   res.render(viewName, {
-    pageTitle,
-    data,
+    pageTitle: pageTitle,
+    data: data,
     message: null,
     status: null,
-    tableName,
+    tableName: tableName,
   });
 };
 

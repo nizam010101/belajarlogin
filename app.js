@@ -35,7 +35,11 @@ app.use(
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
-    // cookie: { maxAge: 3600000 }, // Baris ini dihapus/dikomentar agar otomatis logout saat browser ditutup
+    cookie: {
+      secure: process.env.NODE_ENV === "production", // true di HTTPS, false di localhost
+      httpOnly: true,
+      sameSite: "lax",
+    },
   })
 );
 
@@ -48,6 +52,21 @@ app.use((req, res, next) => {
 // Import routes
 const mainRoutes = require("./routes/index");
 app.use("/", mainRoutes);
+
+// 404 Handler - must be after all routes
+app.use((req, res) => {
+  res.status(404).render("login", {
+    error: "Halaman tidak ditemukan",
+  });
+});
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error("Error:", err.stack);
+  res.status(500).render("login", {
+    error: "Terjadi kesalahan pada server",
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

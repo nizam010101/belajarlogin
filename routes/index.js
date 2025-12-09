@@ -72,7 +72,25 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage: storage });
+// Filter file type dan size limit
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("File harus berformat Excel (.xls atau .xlsx)"), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+});
 
 // --- DATABASE HELPERS ---
 
@@ -138,10 +156,11 @@ const saveToDatabase = async (tableName, data) => {
   const placeholders = keys.map(() => "?").join(", ");
   const insertQuery = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`;
 
-  // Query untuk cek duplikat (cek semua kolom)
+  // Query cek duplikat berdasarkan 4 kolom pertama saja (lebih efisien)
+  const uniqueColumns = columnList.slice(0, Math.min(4, columnList.length));
   const checkQuery =
     `SELECT id FROM ${tableName} WHERE ` +
-    columnList.map((col) => `${col} = ?`).join(" AND ") +
+    uniqueColumns.map((col) => `${col} = ?`).join(" AND ") +
     ` LIMIT 1`;
 
   let insertedCount = 0;
@@ -151,12 +170,13 @@ const saveToDatabase = async (tableName, data) => {
     const values = keys.map((key) => {
       let val = item[key];
       if (val === undefined || val === null) return "";
-      return val;
+      return String(val).trim(); // Trim whitespace
     });
 
     try {
-      // Cek apakah data sudah ada
-      const [existing] = await db.query(checkQuery, values);
+      // Cek duplikat hanya pada kolom unik (3 kolom pertama)
+      const uniqueValues = values.slice(0, uniqueColumns.length);
+      const [existing] = await db.query(checkQuery, uniqueValues);
 
       if (existing.length > 0) {
         skippedCount++;
@@ -166,6 +186,7 @@ const saveToDatabase = async (tableName, data) => {
       }
     } catch (err) {
       console.error("Failed to process row:", err.message);
+      // Continue processing other rows
     }
   }
 
@@ -191,24 +212,46 @@ const renderPage = async (req, res, viewName, pageTitle, tableName) => {
   });
 };
 
-const handelExcelUpload = async (req, res, viewName, pageTitle, tableName) => {
+const handleExcelUpload = async (req, res, viewName, pageTitle, tableName) => {
   if (!req.file) {
     return renderPage(req, res, viewName, pageTitle, tableName);
   }
 
+  let uploadedFilePath = req.file.path;
+
   try {
-    const workbook = xlsx.readFile(req.file.path);
+    const workbook = xlsx.readFile(uploadedFilePath);
     if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
       throw new Error("File Excel tidak memiliki sheet/halaman.");
     }
 
     const sheet_name = workbook.SheetNames[0];
-    // Use raw: false to get formatted strings, but defval: "" ensures empty cells are empty strings
     const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name], {
       defval: "",
     });
 
-    fs.unlinkSync(req.file.path);
+    // Validasi: file kosong atau tidak ada data
+    if (!data || data.length === 0) {
+      throw new Error(
+        "File Excel tidak memiliki data. Pastikan ada baris data setelah header."
+      );
+    }
+
+    // Validasi: cek apakah semua row kosong
+    const hasValidData = data.some((row) => {
+      return Object.values(row).some(
+        (val) => val !== "" && val !== null && val !== undefined
+      );
+    });
+
+    if (!hasValidData) {
+      throw new Error(
+        "Semua baris data kosong. Pastikan file Excel berisi data yang valid."
+      );
+    }
+
+    // Hapus file setelah berhasil dibaca
+    fs.unlinkSync(uploadedFilePath);
 
     let message = "";
     if (tableName) {
@@ -229,13 +272,25 @@ const handelExcelUpload = async (req, res, viewName, pageTitle, tableName) => {
       tableName: tableName,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Upload error:", error);
+
+    // Cleanup file jika masih ada
+    if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+      try {
+        fs.unlinkSync(uploadedFilePath);
+      } catch (cleanupErr) {
+        console.error("Failed to cleanup file:", cleanupErr);
+      }
+    }
+
     // Fetch existing data to show even if upload failed
     let existingData = [];
     try {
       const [rows] = await db.query(`SELECT * FROM ${tableName}`);
       existingData = rows;
-    } catch (e) {}
+    } catch (e) {
+      console.error("Error fetching existing data:", e);
+    }
 
     res.render(viewName, {
       pageTitle: pageTitle,
@@ -259,7 +314,7 @@ const createMenuRoutes = (path, view, title, table) => {
     renderPage(req, res, view, title, table)
   );
   router.post(path, cekLogin, upload.single("excelFile"), (req, res) =>
-    handelExcelUpload(req, res, view, title, table)
+    handleExcelUpload(req, res, view, title, table)
   );
 };
 

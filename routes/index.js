@@ -197,16 +197,28 @@ const saveToDatabase = async (tableName, data) => {
 
 const renderPage = async (req, res, viewName, pageTitle, tableName) => {
   let data = [];
-  try {
-    const [rows] = await db.query(`SELECT * FROM ${tableName}`);
-    data = rows;
-  } catch (error) {
-    // Table doesn't exist yet, ignore
-    console.log(`Table ${tableName} not found or error:`, error.message);
+
+  if (!tableName) {
+    return res.render(viewName, {
+      pageTitle: pageTitle,
+      data: data,
+      message: null,
+      status: null,
+      tableName: tableName,
+    });
   }
 
-  // Pastikan data adalah array
-  if (!Array.isArray(data)) {
+  try {
+    const result = await db.query(`SELECT * FROM \`${tableName}\``);
+    // Handle both array destructuring and direct result
+    if (Array.isArray(result) && result.length > 0) {
+      data = Array.isArray(result[0]) ? result[0] : result;
+    } else if (Array.isArray(result)) {
+      data = result;
+    }
+  } catch (error) {
+    // Table doesn't exist yet or other database error
+    console.log(`Table ${tableName} error:`, error.message);
     data = [];
   }
 

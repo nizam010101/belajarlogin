@@ -191,81 +191,58 @@ const renderPage = async (req, res, viewName, pageTitle, tableName) => {
   });
 };
 
-const handleExcelUpload = async (req, res, viewName, pageTitle, tableName) => {
-  // Tidak ada file: langsung render halaman apa adanya
+const handelExcelUpload = async (req, res, viewName, pageTitle, tableName) => {
   if (!req.file) {
     return renderPage(req, res, viewName, pageTitle, tableName);
   }
 
   try {
-    if (!req.file.path || !fs.existsSync(req.file.path)) {
-      throw new Error("File upload tidak ditemukan di server.");
-    }
-
     const workbook = xlsx.readFile(req.file.path);
-    const sheetNames = workbook.SheetNames || [];
-    if (sheetNames.length === 0) {
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
       throw new Error("File Excel tidak memiliki sheet/halaman.");
     }
 
-    const sheetName = sheetNames[0];
-    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], {
+    const sheet_name = workbook.SheetNames[0];
+    // Use raw: false to get formatted strings, but defval: "" ensures empty cells are empty strings
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name], {
       defval: "",
     });
 
-    // Hapus file upload setelah diproses (ignore jika gagal dihapus)
-    try {
-      fs.unlinkSync(req.file.path);
-    } catch (unlinkErr) {
-      console.warn("Gagal menghapus file upload sementara:", unlinkErr.message);
-    }
+    fs.unlinkSync(req.file.path);
 
-    // Simpan ke DB bila ada nama tabel
     let message = "";
     if (tableName) {
       const stats = await saveToDatabase(tableName, data);
       message = `Berhasil! ${stats.inserted} data baru disimpan. ${stats.skipped} data duplikat diabaikan.`;
     } else {
-      message = `Berhasil upload ${data.length} data (Preview Only)!`;
+      message = "Berhasil upload " + data.length + " data (Preview Only)!";
     }
 
-    // Ambil data terbaru untuk ditampilkan (jika tabel ada)
-    let rows = [];
-    if (tableName) {
-      try {
-        const [result] = await db.query(`SELECT * FROM ${tableName}`);
-        rows = result;
-      } catch (err) {
-        // jika tabel belum ada / error query, rows tetap []
-      }
-    }
+    // Fetch updated data
+    const [rows] = await db.query(`SELECT * FROM ${tableName}`);
 
-    return res.render(viewName, {
-      pageTitle,
-      message,
+    res.render(viewName, {
+      pageTitle: pageTitle,
+      message: message,
       status: "success",
       data: rows,
-      tableName,
+      tableName: tableName,
     });
   } catch (error) {
-    console.error("Upload gagal:", error);
-
+    console.error(error);
+    // Fetch existing data to show even if upload failed
     let existingData = [];
-    if (tableName) {
-      try {
-        const [rows] = await db.query(`SELECT * FROM ${tableName}`);
-        existingData = rows;
-      } catch (err) {
-        // abaikan jika tabel belum ada
-      }
-    }
+    try {
+      const [rows] = await db.query(`SELECT * FROM ${tableName}`);
+      existingData = rows;
+    } catch (e) {}
 
-    return res.render(viewName, {
-      pageTitle,
+    res.render(viewName, {
+      pageTitle: pageTitle,
       message: "Terjadi kesalahan: " + error.message,
       status: "error",
       data: existingData,
-      tableName,
+      tableName: tableName,
     });
   }
 };
@@ -282,7 +259,7 @@ const createMenuRoutes = (path, view, title, table) => {
     renderPage(req, res, view, title, table)
   );
   router.post(path, cekLogin, upload.single("excelFile"), (req, res) =>
-    handleExcelUpload(req, res, view, title, table)
+    handelExcelUpload(req, res, view, title, table)
   );
 };
 
@@ -313,7 +290,7 @@ createMenuRoutes(
 );
 createMenuRoutes(
   "/returditerima",
-  "returditerima",
+  "returditerma",
   "Retur Diterima",
   "retur_diterima"
 );

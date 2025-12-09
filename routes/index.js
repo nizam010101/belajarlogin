@@ -198,6 +198,10 @@ const handleExcelUpload = async (req, res, viewName, pageTitle, tableName) => {
   }
 
   try {
+    if (!req.file.path || !fs.existsSync(req.file.path)) {
+      throw new Error("File upload tidak ditemukan di server.");
+    }
+
     const workbook = xlsx.readFile(req.file.path);
     const sheetNames = workbook.SheetNames || [];
     if (sheetNames.length === 0) {

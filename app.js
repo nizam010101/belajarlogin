@@ -49,6 +49,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check endpoint for monitoring
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
+});
+
 // Import routes
 const mainRoutes = require("./routes/index");
 app.use("/", mainRoutes);
@@ -63,8 +68,14 @@ app.use((req, res) => {
 // Global Error Handler
 app.use((err, req, res, next) => {
   console.error("Error:", err.stack);
+
+  // Don't expose error details in production
+  const errorMessage = process.env.NODE_ENV === "production"
+    ? "Terjadi kesalahan pada server"
+    : err.message;
+
   res.status(500).render("login", {
-    error: "Terjadi kesalahan pada server",
+    error: errorMessage,
   });
 });
 

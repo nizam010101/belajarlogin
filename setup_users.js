@@ -1,4 +1,7 @@
 const db = require("./config/database");
+const bcrypt = require("bcrypt");
+
+const SALT_ROUNDS = 10;
 
 async function setupUsers() {
   try {
@@ -19,14 +22,15 @@ async function setupUsers() {
     ]);
 
     if (rows.length === 0) {
-      // 3. Jika belum ada, buat user admin default
-      // Note: Untuk keamanan di production, password sebaiknya di-hash (misal pakai bcrypt)
-      // Tapi untuk belajar, kita pakai plain text dulu sesuai request.
+      // 3. Hash password sebelum disimpan
+      const hashedPassword = await bcrypt.hash("password", SALT_ROUNDS);
+
       await db.query("INSERT INTO users (username, password) VALUES (?, ?)", [
         "admin",
-        "password",
+        hashedPassword,
       ]);
       console.log('✅ User "admin" berhasil dibuat (Password: password).');
+      console.log('ℹ️  Password sudah di-hash dengan bcrypt untuk keamanan.');
     } else {
       console.log('ℹ️ User "admin" sudah ada, tidak perlu dibuat ulang.');
     }

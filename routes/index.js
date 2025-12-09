@@ -4,6 +4,7 @@ const multer = require("multer");
 const xlsx = require("xlsx");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcrypt");
 const db = require("../config/database"); // Import database connection
 
 // cek user login
@@ -31,13 +32,20 @@ router.post("/login", async (req, res) => {
   try {
     // Cek user di database
     const [rows] = await db.query(
-      "SELECT * FROM users WHERE username = ? AND password = ?",
-      [username, password]
+      "SELECT * FROM users WHERE username = ?",
+      [username]
     );
 
     if (rows.length > 0) {
-      req.session.user = rows[0];
-      return res.redirect("/");
+      // Compare password dengan hash
+      const isPasswordValid = await bcrypt.compare(password, rows[0].password);
+
+      if (isPasswordValid) {
+        req.session.user = rows[0];
+        return res.redirect("/");
+      } else {
+        res.render("login", { error: "Username atau password salah" });
+      }
     } else {
       res.render("login", { error: "Username atau password salah" });
     }
@@ -407,27 +415,6 @@ router.get("/clear/:tableName", cekLogin, async (req, res) => {
 
   const redirectPath = redirectMap[tableName] || "/";
   res.redirect(redirectPath);
-});
-
-// --- ROUTE DEBUG (Hapus nanti setelah fix) ---
-router.get("/cek-db", async (req, res) => {
-  try {
-    // 1. Cek Koneksi
-    const [users] = await db.query("SELECT * FROM users");
-
-    // 2. Tampilkan Hasil
-    res.json({
-      status: "Koneksi Berhasil!",
-      jumlah_user: users.length,
-      data_user: users, // Ini akan menampilkan username & password di browser
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "Koneksi Gagal",
-      pesan_error: error.message,
-      detail: error,
-    });
-  }
 });
 
 module.exports = router;

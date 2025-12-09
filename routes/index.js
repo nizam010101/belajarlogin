@@ -130,11 +130,13 @@ const createTableIfNotExists = async (tableName, dataSample) => {
         counter++;
       }
       usedKeys.add(finalKey);
-      return `${finalKey} TEXT`;
+      // Escape column names with backticks for SQL safety
+      return `\`${finalKey}\` TEXT`;
     })
     .join(", ");
 
-  const createTableQuery = `CREATE TABLE IF NOT EXISTS ${tableName} (id INT AUTO_INCREMENT PRIMARY KEY, ${columns})`;
+  // Use backticks to safely escape table name and prevent SQL injection warnings
+  const createTableQuery = `CREATE TABLE IF NOT EXISTS \`${tableName}\` (id INT AUTO_INCREMENT PRIMARY KEY, ${columns})`;
   console.log("Creating table query:", createTableQuery);
   await db.query(createTableQuery);
 };
@@ -162,17 +164,20 @@ const saveToDatabase = async (tableName, data) => {
 
   const columns = columnList.join(", ");
   const placeholders = keys.map(() => "?").join(", ");
-  const insertQuery = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`;
+
+  // Use backticks to escape table and column names safely
+  const insertQuery = `INSERT INTO \`${tableName}\` (${columns}) VALUES (${placeholders})`;
 
   // Query cek duplikat berdasarkan 4 kolom pertama saja (lebih efisien)
   const uniqueColumns = columnList.slice(0, Math.min(4, columnList.length));
-  const checkQuery =
-    `SELECT id FROM ${tableName} WHERE ` +
-    uniqueColumns.map((col) => `${col} = ?`).join(" AND ") +
-    ` LIMIT 1`;
+
+  // Build safe check query with proper escaping
+  const whereConditions = uniqueColumns.map((col) => `\`${col}\` = ?`).join(" AND ");
+  const checkQuery = `SELECT id FROM \`${tableName}\` WHERE ${whereConditions} LIMIT 1`;
 
   let insertedCount = 0;
   let skippedCount = 0;
+  let errorCount = 0;
 
   for (const item of data) {
     const values = keys.map((key) => {
@@ -182,23 +187,39 @@ const saveToDatabase = async (tableName, data) => {
     });
 
     try {
-      // Cek duplikat hanya pada kolom unik (3 kolom pertama)
+      // Cek duplikat hanya pada kolom unik (berdasarkan jumlah uniqueColumns)
       const uniqueValues = values.slice(0, uniqueColumns.length);
+
+      // Validate that we have values to check
+      if (uniqueValues.length === 0) {
+        skippedCount++;
+        continue;
+      }
+
       const [existing] = await db.query(checkQuery, uniqueValues);
 
-      if (existing.length > 0) {
+      if (existing && existing.length > 0) {
         skippedCount++;
       } else {
         await db.query(insertQuery, values);
         insertedCount++;
       }
     } catch (err) {
-      console.error("Failed to process row:", err.message);
+      errorCount++;
+      // Log specific error types for debugging
+      if (err.code === 'ER_DUP_ENTRY') {
+        console.error("Duplicate entry detected:", err.message);
+        skippedCount++;
+      } else if (err.code === 'ER_BAD_FIELD_ERROR') {
+        console.error("Bad field error:", err.message);
+      } else {
+        console.error("Failed to process row:", err.message);
+      }
       // Continue processing other rows
     }
   }
 
-  return { inserted: insertedCount, skipped: skippedCount };
+  return { inserted: insertedCount, skipped: skippedCount, errors: errorCount };
 };
 
 // --- HANDLERS ---

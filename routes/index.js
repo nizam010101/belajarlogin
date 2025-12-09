@@ -290,7 +290,7 @@ createMenuRoutes(
 );
 createMenuRoutes(
   "/returditerima",
-  "returditerma",
+  "returditerima",
   "Retur Diterima",
   "retur_diterima"
 );

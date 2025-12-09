@@ -55,9 +55,14 @@ router.get("/logout", (req, res) => {
 });
 
 // konfigurasi multer untuk upload file
+const uploadDir = path.join(__dirname, "../uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     cb(
@@ -193,6 +198,10 @@ const handelExcelUpload = async (req, res, viewName, pageTitle, tableName) => {
 
   try {
     const workbook = xlsx.readFile(req.file.path);
+    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+      throw new Error("File Excel tidak memiliki sheet/halaman.");
+    }
+
     const sheet_name = workbook.SheetNames[0];
     // Use raw: false to get formatted strings, but defval: "" ensures empty cells are empty strings
     const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheet_name], {

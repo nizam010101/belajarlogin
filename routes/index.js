@@ -325,4 +325,25 @@ router.get("/clear/:tableName", cekLogin, async (req, res) => {
   res.redirect(redirectPath);
 });
 
+// --- ROUTE DEBUG (Hapus nanti setelah fix) ---
+router.get("/cek-db", async (req, res) => {
+  try {
+    // 1. Cek Koneksi
+    const [users] = await db.query("SELECT * FROM users");
+
+    // 2. Tampilkan Hasil
+    res.json({
+      status: "Koneksi Berhasil!",
+      jumlah_user: users.length,
+      data_user: users, // Ini akan menampilkan username & password di browser
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "Koneksi Gagal",
+      pesan_error: error.message,
+      detail: error,
+    });
+  }
+});
+
 module.exports = router;

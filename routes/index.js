@@ -180,11 +180,21 @@ const saveToDatabase = async (tableName, data) => {
   let errorCount = 0;
 
   for (const item of data) {
+    // Sanitize and validate all values before processing
     const values = keys.map((key) => {
       let val = item[key];
+      // Convert to empty string if null/undefined
       if (val === undefined || val === null) return "";
-      return String(val).trim(); // Trim whitespace
+      // Explicitly convert to string and trim - safe for parameterized query
+      return String(val).trim();
     });
+
+    // Additional validation: skip row if all values are empty
+    const hasNonEmptyValue = values.some(val => val !== "");
+    if (!hasNonEmptyValue) {
+      skippedCount++;
+      continue;
+    }
 
     try {
       // Cek duplikat hanya pada kolom unik (berdasarkan jumlah uniqueColumns)
@@ -196,11 +206,15 @@ const saveToDatabase = async (tableName, data) => {
         continue;
       }
 
+      // Execute parameterized query to check for duplicates (SQL injection safe)
       const [existing] = await db.query(checkQuery, uniqueValues);
 
       if (existing && existing.length > 0) {
+        // Duplicate found, skip insertion
         skippedCount++;
       } else {
+        // No duplicate found, safe to insert with parameterized query
+        // Note: insertQuery uses placeholders (?), values are sanitized strings
         await db.query(insertQuery, values);
         insertedCount++;
       }

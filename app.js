@@ -10,10 +10,10 @@ const PORT = process.env.PORT || 3000;
 
 // Database options for session store
 const sessionStore = new MySQLStore({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "160721",
-  database: process.env.DB_NAME || "belajarlogin",
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   clearExpired: true,
   checkExpirationInterval: 900000,
   expiration: 86400000,
